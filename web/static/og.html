@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>OG · Prancheta Kwara</title>
+<style>
+@font-face{
+  font-family:"Instrument Serif";
+  src:url("fonts/instrument-serif-400.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:block;
+}
+@font-face{
+  font-family:"Instrument Serif";
+  src:url("fonts/instrument-serif-400i.woff2") format("woff2");
+  font-weight:400;font-style:italic;font-display:block;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  src:url("fonts/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:block;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1200px;height:630px;overflow:hidden;background:#1c1410}
+#og{
+  width:1200px;height:630px;position:relative;overflow:hidden;
+  background:#1c1410;color:#f4ead0;
+  font-family:"Instrument Serif", "Iowan Old Style", Palatino, Georgia, serif;
+}
+#og::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(520px 280px at 92% -10%, rgba(169,77,28,.22), transparent 62%),
+    linear-gradient(180deg, #241810 0%, #1c1410 48%, #16110e 100%);
+}
+.rule{
+  position:absolute;left:0;top:0;bottom:0;width:4px;background:#a94d1c;
+}
+.frame{
+  position:relative;z-index:1;height:630px;
+  padding:48px 56px 40px 60px;
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.top{
+  display:flex;align-items:baseline;justify-content:space-between;
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+}
+.kicker{color:#a94d1c}
+.host{color:rgba(244,234,208,.45);letter-spacing:.08em}
+.body{
+  display:grid;grid-template-columns:1fr 520px;gap:40px;align-items:center;
+}
+h1{
+  font-size:76px;font-weight:400;line-height:.9;letter-spacing:-.03em;
+  max-width:8ch;
+}
+.lead{
+  margin-top:20px;max-width:22ch;
+  font-size:22px;line-height:1.35;color:rgba(244,234,208,.68);
+}
+.board{
+  list-style:none;
+  border:1px solid rgba(244,234,208,.14);
+  background:rgba(46,32,24,.72);
+}
+.lot{
+  display:grid;
+  grid-template-columns:86px 1fr auto;
+  gap:8px 12px;
+  align-items:center;
+  padding:16px 18px;
+  border-bottom:1px solid rgba(244,234,208,.08);
+}
+.lot:last-child{border-bottom:0}
+.kid{
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size:12px;line-height:1.35;color:#a94d1c;
+}
+.kid span{display:block;color:rgba(244,234,208,.45)}
+.title{
+  font-size:18px;line-height:1.2;color:#f4ead0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.bid{
+  font-size:22px;line-height:1;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;text-align:right;
+}
+.meta{
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size:11px;color:rgba(244,234,208,.42);
+  display:flex;align-items:center;gap:10px;
+}
+.chip{
+  display:inline-block;padding:2px 6px;
+  border:1px solid rgba(169,77,28,.55);
+  color:#a94d1c;letter-spacing:.14em;font-size:10px;
+}
+.foot{
+  display:flex;align-items:center;justify-content:space-between;
+  font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size:13px;letter-spacing:.04em;
+  color:rgba(244,234,208,.45);
+}
+.foot b{color:#a94d1c;font-weight:400}
+</style>
+</head>
+<body>
+<div id="og">
+  <span class="rule" aria-hidden="true"></span>
+  <div class="frame">
+    <div class="top">
+      <p class="kicker">Kwara · SQLite</p>
+      <p class="host">kwara-viewer.apps.gestaobem.com</p>
+    </div>
+    <div class="body">
+      <div>
+        <h1>Prancheta Kwara</h1>
+        <p class="lead">Lotes abertos gravados no SQLite. Filtro, lance e retirada em BRT.</p>
+      </div>
+      <ol class="board">
+        <li class="lot">
+          <p class="kid">K-3126<span>020</span></p>
+          <div>
+            <p class="title">Monitor Dell, teclado e mouse</p>
+            <p class="meta"><span class="chip">SP</span> Aberto · 09/11 14h04 BRT</p>
+          </div>
+          <p class="bid">R$ 180,00</p>
+        </li>
+        <li class="lot">
+          <p class="kid">K-3038<span>102</span></p>
+          <div>
+            <p class="title">2 Monitores (HP e LG)</p>
+            <p class="meta"><span class="chip">SP</span> Aberto · 09/11 16h25 BRT</p>
+          </div>
+          <p class="bid">R$ 50,00</p>
+        </li>
+        <li class="lot">
+          <p class="kid">K-3087<span>024</span></p>
+          <div>
+            <p class="title">Monitor LCD Dell E1911C</p>
+            <p class="meta"><span class="chip">SP</span> Aberto · 16/11 09h35 BRT</p>
+          </div>
+          <p class="bid">R$ 28,00</p>
+        </li>
+        <li class="lot">
+          <p class="kid">K-3129<span>076</span></p>
+          <div>
+            <p class="title">Monitor Dell</p>
+            <p class="meta"><span class="chip">SP</span> Aberto · 08/12 10h18 BRT</p>
+          </div>
+          <p class="bid">R$ 300,00</p>
+        </li>
+      </ol>
+    </div>
+    <p class="foot"><span>Go · Amarra · SQLite</span><b>102 lotes no SQLite</b></p>
+  </div>
+</div>
+</body>
+</html>

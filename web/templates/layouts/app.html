@@ -40,10 +40,18 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Kwara Viewer" />
-    <meta property="og:title" content="{{ if .Title }}{{ .Title }}{{ else }}Kwara Viewer{{ end }}" />
+    <meta property="og:title" content="Prancheta Kwara" />
+    <meta property="og:description" content="Prancheta de lotes da Kwara gravados no SQLite." />
     <meta property="og:image" content="{{ absURL .Site.AppURL "/static/og.png" }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Prancheta Kwara — lotes no SQLite" />
     <meta property="og:locale" content="{{ ogLocale }}" />
+    <meta property="og:url" content="{{ absURL .Site.AppURL "/" }}" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Prancheta Kwara" />
+    <meta name="twitter:description" content="Prancheta de lotes da Kwara gravados no SQLite." />
+    <meta name="twitter:image" content="{{ absURL .Site.AppURL "/static/og.png" }}" />
     <link rel="stylesheet" href="/static/css/styles.css" />
     <link rel="manifest" href="/static/manifest.webmanifest" />
     <meta name="theme-color" content="#1c1410" />

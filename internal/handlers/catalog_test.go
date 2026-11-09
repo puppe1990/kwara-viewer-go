@@ -161,3 +161,31 @@ func TestCatalogRobots_DisallowAll(t *testing.T) {
 		t.Errorf("robots = %q", rr.Body.String())
 	}
 }
+
+func TestCatalogHome_OpenGraphCard(t *testing.T) {
+	h, s := newCatalog(t, &stubSearcher{})
+	seedDellSP(t, s)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	h.Home(rr, req)
+	body := rr.Body.String()
+
+	want := []string{
+		`property="og:title" content="Prancheta Kwara"`,
+		`property="og:description" content="Prancheta de lotes da Kwara gravados no SQLite."`,
+		`property="og:image" content="https://cais.example.com/static/og.png"`,
+		`property="og:image:width" content="1200"`,
+		`property="og:image:height" content="630"`,
+		`property="og:image:alt" content="Prancheta Kwara — lotes no SQLite"`,
+		`property="og:url" content="https://cais.example.com/"`,
+		`name="twitter:card" content="summary_large_image"`,
+		`name="twitter:image" content="https://cais.example.com/static/og.png"`,
+		`name="twitter:title" content="Prancheta Kwara"`,
+	}
+	for _, snippet := range want {
+		if !strings.Contains(body, snippet) {
+			t.Errorf("missing %q", snippet)
+		}
+	}
+}

@@ -2,7 +2,7 @@
 
 Clipboard of Kwara lots stored in SQLite. Filter by title, pickup state and open/ended; refresh from the live `/busca` RSC search.
 
-Host: `https://kwara-viewer.apps.gestaobem.com` (noindex). GitHub: `puppe1990/kwara-viewer-go` (the Vite CSV viewer already uses `puppe1990/kwara-viewer`).
+Host: `https://kwara-viewer.apps.gestaobem.com` (noindex). Public GitHub: [`puppe1990/kwara-viewer-go`](https://github.com/puppe1990/kwara-viewer-go) (the Vite CSV viewer already uses `puppe1990/kwara-viewer`). Open Graph card: `/static/og.png` (1200×630, source `web/static/og.html`).
 
 ## Stack
 

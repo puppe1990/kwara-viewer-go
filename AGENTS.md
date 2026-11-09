@@ -1,6 +1,6 @@
 # kwara-viewer — AI Conventions
 
-Prancheta de lotes da Kwara (Go + Amarra + SQLite). Host `kwara-viewer.apps.gestaobem.com`. Sem login. Copy pt-BR. Paleta terracota `#a94d1c` / papel / carbono. noindex. Repo privado `puppe1990/kwara-viewer-go` (o Vite CSV já ocupa `puppe1990/kwara-viewer`). Deploy `cleat__deploy app=kwara-viewer ref=main`.
+Prancheta de lotes da Kwara (Go + Amarra + SQLite). Host `kwara-viewer.apps.gestaobem.com`. Sem login. Copy pt-BR. Paleta terracota `#a94d1c` / papel / carbono. noindex. Repo público `puppe1990/kwara-viewer-go` (o Vite CSV já ocupa `puppe1990/kwara-viewer`). Deploy `cleat__deploy app=kwara-viewer ref=main`. OG 1200×630 em `web/static/og.png` (fonte `web/static/og.html`).
 
 Busca ao vivo em `POST /sync` (RSC `/busca`, fetch injetável). Seed em `internal/db/seed-lots.json` (monitores SP). Não misturar com `clientes/KwaraBot` nem `ferramentas/kwara-mcp`.
 
