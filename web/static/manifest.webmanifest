@@ -1,0 +1,30 @@
+{
+  "name": "Kwara Viewer",
+  "short_name": "Kwara",
+  "description": "Prancheta de lotes da Kwara gravados no SQLite.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1c1410",
+  "theme_color": "#a94d1c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

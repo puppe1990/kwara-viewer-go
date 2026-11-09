@@ -1,0 +1,176 @@
+package store
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+)
+
+type Lot struct {
+	ID               string
+	Number           string
+	Title            string
+	Slug             string
+	ListingID        string
+	ListingTitle     string
+	KwaraID          string
+	CurrentBidCents  int64
+	StartingBidCents int64
+	BidsCount        int
+	EndsAt           string
+	PickupState      string
+	Ended            bool
+	URL              string
+	SyncedAt         time.Time
+}
+
+type LotFilter struct {
+	Query       string
+	PickupState string
+	OpenOnly    bool
+	Now         time.Time
+}
+
+func (s *SQLiteStore) UpsertLot(lot Lot) error {
+	if strings.TrimSpace(lot.ID) == "" {
+		return fmt.Errorf("upsert lot: empty id (title %q)", lot.Title)
+	}
+	lot.EndsAt = normalizeEndsAt(lot.EndsAt)
+	ended := 0
+	if lot.Ended {
+		ended = 1
+	}
+	_, err := s.db.Exec(`
+		INSERT INTO lots (
+			id, number, title, slug, listing_id, listing_title, kwara_id,
+			current_bid_cents, starting_bid_cents, bids_count, ends_at,
+			pickup_state, ended, url, synced_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+		ON CONFLICT(id) DO UPDATE SET
+			number = excluded.number,
+			title = excluded.title,
+			slug = excluded.slug,
+			listing_id = excluded.listing_id,
+			listing_title = excluded.listing_title,
+			kwara_id = excluded.kwara_id,
+			current_bid_cents = excluded.current_bid_cents,
+			starting_bid_cents = excluded.starting_bid_cents,
+			bids_count = excluded.bids_count,
+			ends_at = excluded.ends_at,
+			pickup_state = excluded.pickup_state,
+			ended = excluded.ended,
+			url = excluded.url,
+			synced_at = datetime('now'),
+			updated_at = datetime('now')
+	`, lot.ID, lot.Number, lot.Title, lot.Slug, lot.ListingID, lot.ListingTitle, lot.KwaraID,
+		lot.CurrentBidCents, lot.StartingBidCents, lot.BidsCount, lot.EndsAt,
+		lot.PickupState, ended, lot.URL)
+	if err != nil {
+		return fmt.Errorf("upsert lot %s: %w", lot.ID, err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) ListLots(filter LotFilter) ([]Lot, error) {
+	now := filter.Now
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	where, args := lotWhere(filter, now)
+	query := `
+		SELECT id, number, title, slug, listing_id, listing_title, kwara_id,
+			current_bid_cents, starting_bid_cents, bids_count, ends_at,
+			pickup_state, ended, url, synced_at
+		FROM lots
+		WHERE ` + where + `
+		ORDER BY
+			CASE WHEN ended = 0 AND (ends_at = '' OR datetime(ends_at) > datetime(?)) THEN 0 ELSE 1 END,
+			CASE WHEN ends_at = '' THEN 1 ELSE 0 END,
+			datetime(ends_at) ASC
+	`
+	args = append(args, now.UTC().Format(time.RFC3339))
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list lots: %w", err)
+	}
+	defer rows.Close()
+	return scanLots(rows)
+}
+
+func (s *SQLiteStore) CountLots(filter LotFilter) (int, error) {
+	now := filter.Now
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	where, args := lotWhere(filter, now)
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM lots WHERE `+where, args...).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count lots: %w", err)
+	}
+	return n, nil
+}
+
+func lotWhere(filter LotFilter, now time.Time) (string, []any) {
+	clauses := []string{"1=1"}
+	var args []any
+	q := strings.TrimSpace(filter.Query)
+	if q != "" {
+		like := "%" + q + "%"
+		clauses = append(clauses, "(title LIKE ? OR kwara_id LIKE ? OR number LIKE ? OR listing_title LIKE ?)")
+		args = append(args, like, like, like, like)
+	}
+	if state := strings.TrimSpace(filter.PickupState); state != "" {
+		clauses = append(clauses, "pickup_state = ?")
+		args = append(args, state)
+	}
+	if filter.OpenOnly {
+		clauses = append(clauses, "ended = 0 AND (ends_at = '' OR datetime(ends_at) > datetime(?))")
+		args = append(args, now.UTC().Format(time.RFC3339))
+	}
+	return strings.Join(clauses, " AND "), args
+}
+
+func scanLots(rows *sql.Rows) ([]Lot, error) {
+	var lots []Lot
+	for rows.Next() {
+		var lot Lot
+		var ended int
+		var synced string
+		if err := rows.Scan(
+			&lot.ID, &lot.Number, &lot.Title, &lot.Slug, &lot.ListingID, &lot.ListingTitle, &lot.KwaraID,
+			&lot.CurrentBidCents, &lot.StartingBidCents, &lot.BidsCount, &lot.EndsAt,
+			&lot.PickupState, &ended, &lot.URL, &synced,
+		); err != nil {
+			return nil, fmt.Errorf("scan lot: %w", err)
+		}
+		lot.Ended = ended != 0
+		if t, err := time.Parse("2006-01-02 15:04:05", synced); err == nil {
+			lot.SyncedAt = t
+		}
+		lots = append(lots, lot)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan lots: %w", err)
+	}
+	if lots == nil {
+		lots = []Lot{}
+	}
+	return lots, nil
+}
+
+func normalizeEndsAt(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		t, err = time.Parse(time.RFC3339, s)
+	}
+	if err != nil {
+		return s
+	}
+	return t.UTC().Format(time.RFC3339)
+}

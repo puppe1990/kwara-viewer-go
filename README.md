@@ -1,0 +1,33 @@
+# Kwara Viewer
+
+Clipboard of Kwara lots stored in SQLite. Filter by title, pickup state and open/ended; refresh from the live `/busca` RSC search.
+
+Host: `https://kwara-viewer.apps.gestaobem.com` (noindex).
+
+## Stack
+
+- Go + [Amarra](https://github.com/puppe1990/amarra-cais) + SQLite
+- Compact lot shape matches `ferramentas/kwara-mcp` (`id`, `kwaraId`, bid in cents, `pickupState`, `endsAt`)
+- Tests use `pkg/cais/fakedata`; live Kwara HTTP is injected
+
+## Commands
+
+```bash
+amarra-cais install
+amarra-cais test
+amarra-cais dev          # http://localhost:8080
+cleat__deploy app=kwara-viewer ref=main
+```
+
+`POST /sync` with `q=monitor` and `pickup_state=SP` paginates the site search and upserts rows. First boot loads `internal/db/seed-lots.json` when the table is empty.
+
+## Layout
+
+| Path | Role |
+| --- | --- |
+| `internal/store/` | SQLite lots table, upsert/list/filter |
+| `internal/kwara/` | compact mapper + RSC client |
+| `internal/handlers/` | catalog HTML, sync, robots |
+| `internal/db/seed-lots.json` | SP monitor snapshot |
+
+Do not mix files with `clientes/KwaraBot` or `ferramentas/kwara-mcp`.
