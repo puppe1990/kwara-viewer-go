@@ -111,6 +111,32 @@ func TestCatalogHome_ListsSeededLot(t *testing.T) {
 	}
 }
 
+func TestCatalogHome_KwaraLinkOpensInNewTab(t *testing.T) {
+	h, s := newCatalog(t, &stubSearcher{})
+	lot := seedDellSP(t, s)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	h.Home(rr, req)
+	body := rr.Body.String()
+
+	start := strings.Index(body, `href="`+lot.URL+`"`)
+	if start < 0 {
+		t.Fatalf("missing kwara href %q", lot.URL)
+	}
+	end := strings.Index(body[start:], ">")
+	if end < 0 {
+		t.Fatal("unclosed kwara anchor")
+	}
+	tag := body[start : start+end]
+	if !strings.Contains(tag, `target="_blank"`) {
+		t.Fatalf("kwara link missing target=_blank: %s", tag)
+	}
+	if !strings.Contains(tag, `rel="noopener noreferrer"`) {
+		t.Fatalf("kwara link missing rel=noopener noreferrer: %s", tag)
+	}
+}
+
 func TestCatalogHome_FiltersByQuery(t *testing.T) {
 	h, s := newCatalog(t, &stubSearcher{})
 	seedDellSP(t, s)
