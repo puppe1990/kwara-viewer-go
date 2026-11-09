@@ -28,14 +28,16 @@ type Lot struct {
 }
 
 type LotFilter struct {
-	Query       string
-	PickupState string
-	OpenOnly    bool
-	Now         time.Time
-	Sort        string
-	Desc        bool
-	Limit       int
-	Offset      int
+	Query        string
+	PickupState  string
+	PickupCity   string
+	Neighborhood string
+	OpenOnly     bool
+	Now          time.Time
+	Sort         string
+	Desc         bool
+	Limit        int
+	Offset       int
 }
 
 func (s *SQLiteStore) UpsertLot(lot Lot) error {
@@ -181,6 +183,14 @@ func lotWhere(filter LotFilter, now time.Time) (string, []any) {
 	if state := strings.TrimSpace(filter.PickupState); state != "" {
 		clauses = append(clauses, "pickup_state = ?")
 		args = append(args, state)
+	}
+	if city := strings.TrimSpace(filter.PickupCity); city != "" {
+		clauses = append(clauses, "pickup_city = ?")
+		args = append(args, city)
+	}
+	if bairro := strings.TrimSpace(filter.Neighborhood); bairro != "" {
+		clauses = append(clauses, "(pickup_address = ? OR pickup_address LIKE ?)")
+		args = append(args, bairro, bairro+" - %")
 	}
 	if filter.OpenOnly {
 		clauses = append(clauses, "ended = 0 AND (ends_at = '' OR datetime(ends_at) > datetime(?))")

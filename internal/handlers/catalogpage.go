@@ -14,6 +14,8 @@ const catalogPageSize = 10
 type catalogQuery struct {
 	Query    string
 	Pickup   string
+	City     string
+	Bairro   string
 	Sort     string
 	OpenOnly bool
 	Desc     bool
@@ -48,6 +50,8 @@ func parseCatalogQuery(r *http.Request) catalogQuery {
 	q := catalogQuery{
 		Query:    strings.TrimSpace(r.URL.Query().Get("q")),
 		Pickup:   strings.TrimSpace(r.URL.Query().Get("pickup")),
+		City:     strings.TrimSpace(r.URL.Query().Get("city")),
+		Bairro:   strings.TrimSpace(r.URL.Query().Get("bairro")),
 		OpenOnly: r.URL.Query().Get("open") != "0",
 		Page:     1,
 	}
@@ -69,11 +73,13 @@ func normalizeLotSort(sort, dir string) (string, bool) {
 
 func (q catalogQuery) filter() store.LotFilter {
 	return store.LotFilter{
-		Query:       q.Query,
-		PickupState: q.Pickup,
-		OpenOnly:    q.OpenOnly,
-		Sort:        q.Sort,
-		Desc:        q.Desc,
+		Query:        q.Query,
+		PickupState:  q.Pickup,
+		PickupCity:   q.City,
+		Neighborhood: q.Bairro,
+		OpenOnly:     q.OpenOnly,
+		Sort:         q.Sort,
+		Desc:         q.Desc,
 	}
 }
 
@@ -84,6 +90,12 @@ func (q catalogQuery) href(page int, sort string, desc bool) string {
 	}
 	if q.Pickup != "" {
 		v.Set("pickup", q.Pickup)
+	}
+	if q.City != "" {
+		v.Set("city", q.City)
+	}
+	if q.Bairro != "" {
+		v.Set("bairro", q.Bairro)
 	}
 	if !q.OpenOnly {
 		v.Set("open", "0")

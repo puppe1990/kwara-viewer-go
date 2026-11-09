@@ -131,6 +131,53 @@ func TestCatalogHome_FiltersByQuery(t *testing.T) {
 	}
 }
 
+func TestCatalogHome_FiltersByCityAndBairro(t *testing.T) {
+	h, s := newCatalog(t, &stubSearcher{})
+	seedDellSP(t, s)
+	embu := store.Lot{
+		ID:            "2",
+		Title:         "Monitor gamer Embu",
+		PickupState:   "SP",
+		PickupCity:    "Embu das Artes",
+		PickupAddress: "Jardim Eliza - Embu das Artes/SP",
+		EndsAt:        "2026-12-01T15:00:00Z",
+	}
+	if err := s.UpsertLot(embu); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/?city=Embu+das+Artes", nil)
+	rr := httptest.NewRecorder()
+	h.Home(rr, req)
+	body := rr.Body.String()
+	if !strings.Contains(body, "Monitor gamer Embu") {
+		t.Fatal("embu lot missing")
+	}
+	if strings.Contains(body, "Monitor Dell") {
+		t.Fatal("taboão lot should be filtered out")
+	}
+	if !strings.Contains(body, `name="city"`) || !strings.Contains(body, `name="bairro"`) {
+		t.Fatal("missing city/bairro filter fields")
+	}
+	if !strings.Contains(body, "Jardim Eliza") {
+		t.Fatal("missing bairro option for selected city")
+	}
+	if strings.Contains(body, "Jardim Triangulo") {
+		t.Fatal("other city bairro should not be in options")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/?bairro=Jardim+Eliza", nil)
+	rr = httptest.NewRecorder()
+	h.Home(rr, req)
+	body = rr.Body.String()
+	if !strings.Contains(body, "Monitor gamer Embu") {
+		t.Fatal("bairro filter missed embu lot")
+	}
+	if strings.Contains(body, "Monitor Dell") {
+		t.Fatal("bairro filter still showing taboão")
+	}
+}
+
 func TestCatalogSync_UpsertsSearcherLots(t *testing.T) {
 	fakedata.Seed(5)
 	incoming := store.Lot{

@@ -22,6 +22,7 @@ type Store interface {
 	ListLots(filter LotFilter) ([]Lot, error)
 	CountLots(filter LotFilter) (int, error)
 	PatchPickup(id, city, address, state string) error
+	PickupFacets(city string) (PickupFacets, error)
 }
 
 type SQLiteStore struct {

@@ -7,17 +7,17 @@ import (
 )
 
 func TestParseCatalogQuery_ReadsPageSortAndOpen(t *testing.T) {
-	req := httptest.NewRequest("GET", "/?q=Embu&pickup=SP&open=0&sort=bid&dir=desc&page=3", nil)
+	req := httptest.NewRequest("GET", "/?q=Dell&pickup=SP&city=Embu+das+Artes&bairro=Jardim+Eliza&open=0&sort=bid&dir=desc&page=3", nil)
 	q := parseCatalogQuery(req)
-	if q.Query != "Embu" || q.Pickup != "SP" || q.OpenOnly || q.Sort != "bid" || !q.Desc || q.Page != 3 {
+	if q.Query != "Dell" || q.Pickup != "SP" || q.City != "Embu das Artes" || q.Bairro != "Jardim Eliza" || q.OpenOnly || q.Sort != "bid" || !q.Desc || q.Page != 3 {
 		t.Fatalf("%+v", q)
 	}
 }
 
 func TestCatalogQuery_HrefKeepsFilterSortAndPage(t *testing.T) {
-	q := catalogQuery{Query: "Embu", OpenOnly: false, Sort: "bid", Desc: true}
+	q := catalogQuery{Query: "Dell", City: "Embu das Artes", Bairro: "Jardim Eliza", OpenOnly: false, Sort: "bid", Desc: true}
 	got := q.href(2, q.Sort, q.Desc)
-	for _, part := range []string{"q=Embu", "open=0", "sort=bid", "dir=desc", "page=2"} {
+	for _, part := range []string{"q=Dell", "city=Embu", "bairro=Jardim", "open=0", "sort=bid", "dir=desc", "page=2"} {
 		if !strings.Contains(got, part) {
 			t.Errorf("%s missing in %q", part, got)
 		}

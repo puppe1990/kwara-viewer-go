@@ -234,6 +234,100 @@ func TestSQLiteStore_ListLotsFiltersQueryPickupAndOpen(t *testing.T) {
 	}
 }
 
+func TestNeighborhoodFromAddress(t *testing.T) {
+	cases := map[string]string{
+		"Jardim Eliza - Embu das Artes/SP": "Jardim Eliza",
+		"Vila Ema - São Paulo/SP":          "Vila Ema",
+		"São Paulo":                        "São Paulo",
+		"":                                 "",
+	}
+	for in, want := range cases {
+		if got := NeighborhoodFromAddress(in); got != want {
+			t.Errorf("NeighborhoodFromAddress(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestSQLiteStore_ListLotsFiltersCityAndNeighborhood(t *testing.T) {
+	s := newTestStore(t)
+	taboao := fakeLot("1")
+	taboao.Title = "Monitor Dell Taboão"
+	taboao.PickupCity = "Taboão da Serra"
+	taboao.PickupAddress = "Jardim Triangulo - Taboão da Serra/SP"
+	taboao.EndsAt = "2026-12-01T15:00:00Z"
+	embu := fakeLot("2")
+	embu.Title = "Monitor gamer Embu"
+	embu.PickupCity = "Embu das Artes"
+	embu.PickupAddress = "Jardim Eliza - Embu das Artes/SP"
+	embu.EndsAt = "2026-12-01T15:00:00Z"
+	for _, lot := range []Lot{taboao, embu} {
+		if err := s.UpsertLot(lot); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	byCity, err := s.ListLots(LotFilter{PickupCity: "Embu das Artes"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(byCity) != 1 || byCity[0].ID != "2" {
+		t.Fatalf("city = %v", idsOf(byCity))
+	}
+
+	byBairro, err := s.ListLots(LotFilter{Neighborhood: "Jardim Eliza"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(byBairro) != 1 || byBairro[0].ID != "2" {
+		t.Fatalf("bairro = %v", idsOf(byBairro))
+	}
+
+	miss, err := s.ListLots(LotFilter{PickupCity: "Embu das Artes", Neighborhood: "Jardim Triangulo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(miss) != 0 {
+		t.Fatalf("city+bairro mismatch = %v", idsOf(miss))
+	}
+}
+
+func TestSQLiteStore_PickupFacetsListsCitiesAndNeighborhoods(t *testing.T) {
+	s := newTestStore(t)
+	taboao := fakeLot("1")
+	taboao.PickupCity = "Taboão da Serra"
+	taboao.PickupAddress = "Jardim Triangulo - Taboão da Serra/SP"
+	embu := fakeLot("2")
+	embu.PickupCity = "Embu das Artes"
+	embu.PickupAddress = "Jardim Eliza - Embu das Artes/SP"
+	for _, lot := range []Lot{taboao, embu} {
+		if err := s.UpsertLot(lot); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	all, err := s.PickupFacets("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all.Cities) != 2 {
+		t.Fatalf("cities = %v", all.Cities)
+	}
+	if len(all.Neighborhoods) != 2 {
+		t.Fatalf("bairros = %v", all.Neighborhoods)
+	}
+
+	filtered, err := s.PickupFacets("Embu das Artes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filtered.Cities) != 2 {
+		t.Fatalf("cities stay complete = %v", filtered.Cities)
+	}
+	if len(filtered.Neighborhoods) != 1 || filtered.Neighborhoods[0] != "Jardim Eliza" {
+		t.Fatalf("bairros for city = %v", filtered.Neighborhoods)
+	}
+}
+
 func TestSQLiteStore_ListLotsOpenFirstThenEndsAt(t *testing.T) {
 	fakedata.Seed(3)
 	s := newTestStore(t)

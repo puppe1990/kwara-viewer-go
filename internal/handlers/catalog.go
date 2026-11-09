@@ -45,6 +45,11 @@ func (h *CatalogHandler) t(r *http.Request, key string, args ...any) string {
 func (h *CatalogHandler) Home(w http.ResponseWriter, r *http.Request) {
 	q := parseCatalogQuery(r)
 	filter := q.filter()
+	facets, err := h.store.PickupFacets(q.City)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	matched, err := h.store.CountLots(filter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -64,17 +69,21 @@ func (h *CatalogHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.write(w, r, "home", h.t(r, "home.title"), map[string]any{
-		"Query":    q.Query,
-		"Pickup":   q.Pickup,
-		"OpenOnly": q.OpenOnly,
-		"Sort":     q.Sort,
-		"Desc":     q.Desc,
-		"Lots":     newLotViews(lots),
-		"Shown":    len(lots),
-		"Matched":  matched,
-		"Stored":   total,
-		"Headers":  q.headers(h.sortLabels(r)),
-		"Pager":    pager,
+		"Query":         q.Query,
+		"Pickup":        q.Pickup,
+		"City":          q.City,
+		"Bairro":        q.Bairro,
+		"Cities":        facets.Cities,
+		"Neighborhoods": facets.Neighborhoods,
+		"OpenOnly":      q.OpenOnly,
+		"Sort":          q.Sort,
+		"Desc":          q.Desc,
+		"Lots":          newLotViews(lots),
+		"Shown":         len(lots),
+		"Matched":       matched,
+		"Stored":        total,
+		"Headers":       q.headers(h.sortLabels(r)),
+		"Pager":         pager,
 	})
 }
 

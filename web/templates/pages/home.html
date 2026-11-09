@@ -23,6 +23,24 @@
         <input name="q" value="{{ .Query }}" class="amarra-field mt-1.5 font-mono" placeholder="monitor · K-3126 · 020" />
       </label>
       <label class="amarra-label">
+        {{ t "home.filter_city" }}
+        <select name="city" class="amarra-field mt-1.5">
+          <option value="">{{ t "home.filter_city_all" }}</option>
+          {{ range .Cities }}
+          <option value="{{ . }}"{{ if eq $.City . }} selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </label>
+      <label class="amarra-label">
+        {{ t "home.filter_bairro" }}
+        <select name="bairro" class="amarra-field mt-1.5">
+          <option value="">{{ t "home.filter_bairro_all" }}</option>
+          {{ range .Neighborhoods }}
+          <option value="{{ . }}"{{ if eq $.Bairro . }} selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+      </label>
+      <label class="amarra-label">
         {{ t "home.filter_pickup" }}
         <input name="pickup" value="{{ .Pickup }}" class="amarra-field mt-1.5 uppercase" placeholder="SP" maxlength="2" />
       </label>
