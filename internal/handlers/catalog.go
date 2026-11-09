@@ -21,6 +21,10 @@ type LotSearcher interface {
 	SearchAll(ctx context.Context, q string, take int) ([]store.Lot, error)
 }
 
+type LotDetailer interface {
+	LotDetails(ctx context.Context, id string) (store.Lot, error)
+}
+
 type CatalogHandler struct {
 	views    *view.Renderer
 	store    store.Store
@@ -91,6 +95,9 @@ func (h *CatalogHandler) pullLots(ctx context.Context, q, pickup string) (int, e
 	if err != nil {
 		return 0, err
 	}
+	if d, ok := h.searcher.(LotDetailer); ok {
+		items = fillPickupPlaces(ctx, d, items)
+	}
 	saved := 0
 	for _, lot := range items {
 		if pickup != "" && !strings.EqualFold(lot.PickupState, pickup) {
@@ -105,6 +112,70 @@ func (h *CatalogHandler) pullLots(ctx context.Context, q, pickup string) (int, e
 		saved++
 	}
 	return saved, nil
+}
+
+func fillPickupPlaces(ctx context.Context, d LotDetailer, lots []store.Lot) []store.Lot {
+	cache := map[string]store.Lot{}
+	for i, lot := range lots {
+		if lot.PickupCity != "" && lot.PickupAddress != "" {
+			continue
+		}
+		key := pickupGroupKey(lot)
+		detail, ok := cache[key]
+		if !ok {
+			fetched, err := d.LotDetails(ctx, lot.ID)
+			if err != nil {
+				continue
+			}
+			detail = fetched
+			cache[key] = detail
+		}
+		if lots[i].PickupCity == "" {
+			lots[i].PickupCity = detail.PickupCity
+		}
+		if lots[i].PickupAddress == "" {
+			lots[i].PickupAddress = detail.PickupAddress
+		}
+		if lots[i].PickupState == "" {
+			lots[i].PickupState = detail.PickupState
+		}
+	}
+	return lots
+}
+
+func pickupGroupKey(lot store.Lot) string {
+	if lot.ListingID != "" {
+		return "listing:" + lot.ListingID
+	}
+	if lot.KwaraID != "" {
+		return "kwara:" + lot.KwaraID
+	}
+	return "lot:" + lot.ID
+}
+
+func EnrichStoredPickup(ctx context.Context, s store.Store, d LotDetailer) error {
+	lots, err := s.ListLots(store.LotFilter{})
+	if err != nil {
+		return err
+	}
+	var missing []store.Lot
+	for _, lot := range lots {
+		if lot.PickupCity == "" || lot.PickupAddress == "" {
+			missing = append(missing, lot)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	for _, lot := range fillPickupPlaces(ctx, d, missing) {
+		if lot.PickupCity == "" && lot.PickupAddress == "" {
+			continue
+		}
+		if err := s.PatchPickup(lot.ID, lot.PickupCity, lot.PickupAddress, lot.PickupState); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (h *CatalogHandler) Robots(w http.ResponseWriter, r *http.Request) {

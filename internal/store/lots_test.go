@@ -64,6 +64,87 @@ func TestSQLiteStore_UpsertLotThenListsIt(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_UpsertLotPersistsPickupCityAndAddress(t *testing.T) {
+	fakedata.Seed(43)
+	s := newTestStore(t)
+	lot := fakeLot("1745009854700848771")
+	lot.PickupCity = "Taboão da Serra"
+	lot.PickupAddress = "Jardim Triangulo - Taboão da Serra/SP"
+
+	if err := s.UpsertLot(lot); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ListLots(LotFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len = %d", len(got))
+	}
+	if got[0].PickupCity != "Taboão da Serra" {
+		t.Errorf("city = %q", got[0].PickupCity)
+	}
+	if got[0].PickupAddress != "Jardim Triangulo - Taboão da Serra/SP" {
+		t.Errorf("address = %q", got[0].PickupAddress)
+	}
+}
+
+func TestSQLiteStore_PatchPickupFillsEmptyColumns(t *testing.T) {
+	fakedata.Seed(44)
+	s := newTestStore(t)
+	if err := s.UpsertLot(fakeLot("1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PatchPickup("1", "Taboão da Serra", "Jardim Triangulo - Taboão da Serra/SP", "SP"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ListLots(LotFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].PickupCity != "Taboão da Serra" {
+		t.Errorf("city = %q", got[0].PickupCity)
+	}
+	if got[0].PickupAddress != "Jardim Triangulo - Taboão da Serra/SP" {
+		t.Errorf("address = %q", got[0].PickupAddress)
+	}
+
+	if err := s.PatchPickup("1", "Outra", "Outro local", "RJ"); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.ListLots(LotFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].PickupCity != "Taboão da Serra" {
+		t.Errorf("city overwritten = %q", got[0].PickupCity)
+	}
+	if got[0].PickupAddress != "Jardim Triangulo - Taboão da Serra/SP" {
+		t.Errorf("address overwritten = %q", got[0].PickupAddress)
+	}
+	if got[0].PickupState != "SP" {
+		t.Errorf("state overwritten = %q", got[0].PickupState)
+	}
+}
+
+func TestSQLiteStore_ListLotsQueryMatchesPickupCity(t *testing.T) {
+	fakedata.Seed(45)
+	s := newTestStore(t)
+	lot := fakeLot("1")
+	lot.PickupCity = "Taboão da Serra"
+	lot.PickupAddress = "Jardim Triangulo - Taboão da Serra/SP"
+	if err := s.UpsertLot(lot); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ListLots(LotFilter{Query: "Taboão"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("query city = %+v", idsOf(got))
+	}
+}
+
 func TestSQLiteStore_UpsertLotUpdatesCurrentBid(t *testing.T) {
 	fakedata.Seed(7)
 	s := newTestStore(t)

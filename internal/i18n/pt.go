@@ -33,7 +33,7 @@ var ptMessages = map[string]string{
 
 	"home.title":         "Lotes",
 	"home.hero_heading":  "Prancheta Kwara",
-	"home.tagline":       "Lotes abertos gravados no SQLite. Filtro, lance e retirada em BRT.",
+	"home.tagline":       "Lotes abertos gravados no SQLite. Cidade, local de retirada, lance e prazo em BRT.",
 	"home.cta_open":      "Abrir o painel",
 	"home.stack":         "Go · Amarra · SQLite",
 	"home.next_steps":    "Próximos passos",
@@ -41,7 +41,7 @@ var ptMessages = map[string]string{
 	"home.step_dev":      "Suba o servidor de desenvolvimento",
 	"home.step_docs":     "Explore o framework",
 	"home.powered_by":    "Powered by Cais — apps leves no Lightsail",
-	"home.filter_q":      "Título, K-code ou número",
+	"home.filter_q":      "Título, K-code, número ou cidade",
 	"home.filter_pickup": "UF",
 	"home.filter_open":   "Só abertos",
 	"home.filter_submit": "Filtrar",

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -30,6 +31,21 @@ func (s *stubSearcher) SearchAll(_ context.Context, q string, _ int) ([]store.Lo
 	return s.items, nil
 }
 
+type stubDetailer struct {
+	stubSearcher
+	details map[string]store.Lot
+	called  []string
+}
+
+func (s *stubDetailer) LotDetails(_ context.Context, id string) (store.Lot, error) {
+	s.called = append(s.called, id)
+	lot, ok := s.details[id]
+	if !ok {
+		return store.Lot{}, fmt.Errorf("lote %s não encontrado", id)
+	}
+	return lot, nil
+}
+
 func newCatalog(t *testing.T, searcher LotSearcher) (*CatalogHandler, store.Store) {
 	t.Helper()
 	st := setupTestStore(t)
@@ -50,6 +66,8 @@ func seedDellSP(t *testing.T, s store.Store) store.Lot {
 		BidsCount:       1,
 		EndsAt:          "2026-12-01T15:00:00Z",
 		PickupState:     "SP",
+		PickupCity:      "Taboão da Serra",
+		PickupAddress:   "Jardim Triangulo - Taboão da Serra/SP",
 		URL:             "https://www.kwara.com.br/bens/monitor-dell-1739",
 	}
 	if err := s.UpsertLot(lot); err != nil {
@@ -81,6 +99,12 @@ func TestCatalogHome_ListsSeededLot(t *testing.T) {
 	}
 	if !strings.Contains(body, "R$ 180,00") {
 		t.Fatal("missing bid")
+	}
+	if !strings.Contains(body, "Taboão da Serra") {
+		t.Fatal("missing pickup city")
+	}
+	if !strings.Contains(body, "Jardim Triangulo - Taboão da Serra/SP") {
+		t.Fatal("missing pickup address")
 	}
 	if strings.Contains(body, "is running") {
 		t.Fatal("scaffold heading still present")
@@ -149,6 +173,136 @@ func TestCatalogSync_UpsertsSearcherLots(t *testing.T) {
 	msg, ok := flash.Consume(flashReq)
 	if !ok || !strings.Contains(msg.Message, "1") {
 		t.Fatalf("flash = %+v ok=%v", msg, ok)
+	}
+}
+
+func TestCatalogSync_FillsPickupFromLotDetails(t *testing.T) {
+	incoming := store.Lot{
+		ID:          "1746417152014944098",
+		Title:       "Monitor gamer",
+		KwaraID:     "K-3091",
+		ListingID:   "1742065509714625998",
+		PickupState: "SP",
+		EndsAt:      "2026-12-05T12:00:00Z",
+	}
+	searcher := &stubDetailer{
+		stubSearcher: stubSearcher{items: []store.Lot{incoming}},
+		details: map[string]store.Lot{
+			"1746417152014944098": {
+				ID:            "1746417152014944098",
+				PickupState:   "SP",
+				PickupCity:    "Embu das Artes",
+				PickupAddress: "Jardim Eliza - Embu das Artes/SP",
+			},
+		},
+	}
+	h, s := newCatalog(t, searcher)
+
+	req := httptest.NewRequest(http.MethodPost, "/sync", strings.NewReader(url.Values{
+		"q":            {"monitor"},
+		"pickup_state": {"SP"},
+	}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	h.Sync(rr, req)
+
+	got, err := s.ListLots(store.LotFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("stored = %+v", got)
+	}
+	if got[0].PickupCity != "Embu das Artes" {
+		t.Errorf("city = %q", got[0].PickupCity)
+	}
+	if got[0].PickupAddress != "Jardim Eliza - Embu das Artes/SP" {
+		t.Errorf("address = %q", got[0].PickupAddress)
+	}
+	if len(searcher.called) != 1 || searcher.called[0] != incoming.ID {
+		t.Errorf("details called = %v", searcher.called)
+	}
+}
+
+func TestCatalogSync_FillsPickupOncePerListing(t *testing.T) {
+	listing := "1742065509714625998"
+	first := store.Lot{
+		ID: "a", Title: "Monitor A", ListingID: listing, KwaraID: "K-3091",
+		PickupState: "SP", EndsAt: "2026-12-05T12:00:00Z",
+	}
+	second := store.Lot{
+		ID: "b", Title: "Monitor B", ListingID: listing, KwaraID: "K-3091",
+		PickupState: "SP", EndsAt: "2026-12-05T12:00:00Z",
+	}
+	searcher := &stubDetailer{
+		stubSearcher: stubSearcher{items: []store.Lot{first, second}},
+		details: map[string]store.Lot{
+			"a": {
+				ID:            "a",
+				PickupState:   "SP",
+				PickupCity:    "Embu das Artes",
+				PickupAddress: "Jardim Eliza - Embu das Artes/SP",
+			},
+		},
+	}
+	h, s := newCatalog(t, searcher)
+
+	req := httptest.NewRequest(http.MethodPost, "/sync", strings.NewReader(url.Values{
+		"q":            {"monitor"},
+		"pickup_state": {"SP"},
+	}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	h.Sync(httptest.NewRecorder(), req)
+
+	got, err := s.ListLots(store.LotFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("stored = %+v", got)
+	}
+	for _, lot := range got {
+		if lot.PickupCity != "Embu das Artes" {
+			t.Errorf("%s city = %q", lot.ID, lot.PickupCity)
+		}
+		if lot.PickupAddress != "Jardim Eliza - Embu das Artes/SP" {
+			t.Errorf("%s address = %q", lot.ID, lot.PickupAddress)
+		}
+	}
+	if len(searcher.called) != 1 || searcher.called[0] != "a" {
+		t.Errorf("details called = %v, want one fetch per listing", searcher.called)
+	}
+}
+
+func TestEnrichStoredPickup_PatchesMissingCity(t *testing.T) {
+	s := setupTestStore(t)
+	if err := s.UpsertLot(store.Lot{
+		ID: "1", Title: "Monitor Dell", PickupState: "SP", EndsAt: "2026-12-01T00:00:00Z",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d := &stubDetailer{
+		details: map[string]store.Lot{
+			"1": {
+				ID:            "1",
+				PickupCity:    "Taboão da Serra",
+				PickupAddress: "Jardim Triangulo - Taboão da Serra/SP",
+				PickupState:   "SP",
+			},
+		},
+	}
+	if err := EnrichStoredPickup(context.Background(), s, d); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ListLots(store.LotFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].PickupCity != "Taboão da Serra" {
+		t.Errorf("city = %q", got[0].PickupCity)
+	}
+	if got[0].PickupAddress != "Jardim Triangulo - Taboão da Serra/SP" {
+		t.Errorf("address = %q", got[0].PickupAddress)
 	}
 }
 

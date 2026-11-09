@@ -100,3 +100,31 @@ func TestClient_SearchPaginatesUntilTotal(t *testing.T) {
 		t.Fatalf("len = %d", len(items))
 	}
 }
+
+func TestClient_LotDetailsUnwrapsLotDetails(t *testing.T) {
+	var gotURL string
+	client := NewClient(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		gotURL = req.URL.String()
+		body := `{"lotDetails":{"id":"1746417152014944098","title":"Monitor gamer","pickUpState":"SP","pickUpAddress":"Jardim Eliza - Embu das Artes/SP","listing":{"kwaraId":"K-3091","location":"Embu das Artes/SP"}}}`
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    req,
+		}, nil
+	})})
+
+	lot, err := client.LotDetails(context.Background(), "1746417152014944098")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(gotURL, "https://api.kwara.com.br/web/lots/1746417152014944098/details") {
+		t.Errorf("url = %q", gotURL)
+	}
+	if lot.PickupCity != "Embu das Artes" {
+		t.Errorf("city = %q", lot.PickupCity)
+	}
+	if lot.PickupAddress != "Jardim Eliza - Embu das Artes/SP" {
+		t.Errorf("address = %q", lot.PickupAddress)
+	}
+}

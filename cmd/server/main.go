@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/puppe1990/amarra-cais/pkg/amarra/view"
 	"github.com/puppe1990/amarra-cais/pkg/cais"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/puppe1990/kwara-viewer/internal/app"
 	"github.com/puppe1990/kwara-viewer/internal/db"
+	"github.com/puppe1990/kwara-viewer/internal/handlers"
 	appi18n "github.com/puppe1990/kwara-viewer/internal/i18n"
 	"github.com/puppe1990/kwara-viewer/internal/kwara"
 	"github.com/puppe1990/kwara-viewer/internal/store"
@@ -92,6 +94,14 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		_ = s.Close()
 		return nil, fmt.Errorf("seed lots: %w", err)
 	}
+	client := kwara.NewClient(nil)
+	go func() {
+		enrichCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+		if err := handlers.EnrichStoredPickup(enrichCtx, s, client); err != nil {
+			log.Printf("kwara pickup enrich: %v", err)
+		}
+	}()
 
 	staticDir, err := cais.ResolveWebDir("static", cfg.StaticDir)
 	if err != nil {
@@ -102,7 +112,7 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 	return app.New(cfg, app.Deps{
 		Views:     views,
 		Store:     s,
-		Searcher:  kwara.NewClient(nil),
+		Searcher:  client,
 		StaticDir: staticDir,
 		Site:      meta.SiteFrom("Kwara Viewer", cfg.AppURL),
 		Catalog:   catalog,

@@ -61,6 +61,77 @@ func TestCompactLot_MapsSearchItem(t *testing.T) {
 	}
 }
 
+func TestCompactLot_MapsPickupCityAndAddress(t *testing.T) {
+	fakedata.Seed(22)
+	street := "Jardim " + fakedata.Name()
+	raw := map[string]any{
+		"id":            "1745009854700848771",
+		"title":         "Monitor Dell E1911C",
+		"pickUpState":   "SP",
+		"pickUpAddress": street + " - Taboão da Serra/SP",
+		"listing": map[string]any{
+			"kwaraId":  "K-3087",
+			"location": "Taboão da Serra/SP",
+		},
+	}
+
+	lot, err := CompactLot(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lot.PickupCity != "Taboão da Serra" {
+		t.Errorf("city = %q", lot.PickupCity)
+	}
+	if lot.PickupAddress != street+" - Taboão da Serra/SP" {
+		t.Errorf("address = %q", lot.PickupAddress)
+	}
+	if lot.PickupState != "SP" {
+		t.Errorf("state = %q", lot.PickupState)
+	}
+}
+
+func TestCompactLot_UnwrapsLotDetailsPickup(t *testing.T) {
+	lot, err := CompactLot(map[string]any{
+		"lotDetails": map[string]any{
+			"id":            "1746417152014944098",
+			"title":         "Monitor gamer",
+			"pickUpState":   "SP",
+			"pickUpAddress": "Jardim Eliza - Embu das Artes/SP",
+			"listing": map[string]any{
+				"kwaraId":  "K-3091",
+				"location": "Embu das Artes/SP",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lot.ID != "1746417152014944098" {
+		t.Errorf("id = %q", lot.ID)
+	}
+	if lot.PickupCity != "Embu das Artes" {
+		t.Errorf("city = %q", lot.PickupCity)
+	}
+	if lot.PickupAddress != "Jardim Eliza - Embu das Artes/SP" {
+		t.Errorf("address = %q", lot.PickupAddress)
+	}
+}
+
+func TestCityFromLocation(t *testing.T) {
+	cases := map[string]string{
+		"Taboão da Serra/SP": "Taboão da Serra",
+		"Embu das Artes/SP":  "Embu das Artes",
+		"São Paulo":          "São Paulo",
+		"Cariacica/ES":       "Cariacica",
+		"":                   "",
+	}
+	for in, want := range cases {
+		if got := CityFromLocation(in); got != want {
+			t.Errorf("CityFromLocation(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestCompactLot_RequiresID(t *testing.T) {
 	_, err := CompactLot(map[string]any{"title": "Monitor"})
 	if err == nil {
@@ -127,5 +198,26 @@ func TestLotFromSeedRow_FillsIDFromURL(t *testing.T) {
 	}
 	if lot.PickupState != "SP" {
 		t.Errorf("pickup default = %q", lot.PickupState)
+	}
+}
+
+func TestLotFromSeedRow_MapsPickupCityAndAddress(t *testing.T) {
+	lot, err := LotFromSeedRow(map[string]any{
+		"number":        "025",
+		"kwaraId":       "K-3087",
+		"title":         "Monitor Dell E1911C",
+		"bid":           "R$ 28,00",
+		"url":           "https://www.kwara.com.br/bens/monitor-dell-e1911c-1745009854700848771",
+		"pickupCity":    "Taboão da Serra",
+		"pickupAddress": "Jardim Triangulo - Taboão da Serra/SP",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lot.PickupCity != "Taboão da Serra" {
+		t.Errorf("city = %q", lot.PickupCity)
+	}
+	if lot.PickupAddress != "Jardim Triangulo - Taboão da Serra/SP" {
+		t.Errorf("address = %q", lot.PickupAddress)
 	}
 }

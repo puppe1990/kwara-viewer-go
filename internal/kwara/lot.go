@@ -31,6 +31,10 @@ func CompactLot(raw any) (store.Lot, error) {
 		listingID = stringField(listing, "id")
 	}
 	setting := currentAuctionSetting(item)
+	city := CityFromLocation(firstString(listing, "location"))
+	if city == "" {
+		city = CityFromLocation(firstString(item, "pickUpCity", "pickupCity"))
+	}
 	return store.Lot{
 		ID:               id,
 		Number:           stringField(item, "number"),
@@ -44,6 +48,8 @@ func CompactLot(raw any) (store.Lot, error) {
 		BidsCount:        int(intField(item, "cachedBidsCount")),
 		EndsAt:           firstString(item, "currentEndAt", "scheduledEndAt"),
 		PickupState:      stringField(item, "pickUpState"),
+		PickupCity:       city,
+		PickupAddress:    firstString(item, "pickUpAddress", "locationAddress", "visitingAddress", "pickupAddress"),
 		Ended:            boolField(item, "isEnded"),
 		URL:              lotURL(slug, id),
 	}, nil
@@ -91,6 +97,8 @@ func LotFromSeedRow(raw map[string]any) (store.Lot, error) {
 		BidsCount:       int(intField(raw, "bids")),
 		EndsAt:          stringField(raw, "endsAt"),
 		PickupState:     pickup,
+		PickupCity:      firstString(raw, "pickupCity", "city"),
+		PickupAddress:   firstString(raw, "pickupAddress", "local"),
 		Ended:           boolField(raw, "ended"),
 		URL:             lotURL(slug, id),
 	}, nil
@@ -145,6 +153,17 @@ func IsMonitorLot(title string) bool {
 	return true
 }
 
+func CityFromLocation(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if i := strings.LastIndex(s, "/"); i > 0 && len(s)-i == 3 {
+		return strings.TrimSpace(s[:i])
+	}
+	return s
+}
+
 func lotURL(slug, id string) string {
 	if slug == "" && id == "" {
 		return ""
@@ -179,13 +198,14 @@ func normalizeLot(raw any) map[string]any {
 		return map[string]any{}
 	}
 	merged := cloneMap(item)
-	nestedItem := mapField(item, "item")
-	nestedLot := mapField(item, "lot")
-	for k, v := range nestedItem {
-		merged[k] = v
-	}
-	for k, v := range nestedLot {
-		merged[k] = v
+	for _, nested := range []map[string]any{
+		mapField(item, "item"),
+		mapField(item, "lot"),
+		mapField(item, "lotDetails"),
+	} {
+		for k, v := range nested {
+			merged[k] = v
+		}
 	}
 	if stringField(merged, "id") == "" {
 		if v := stringField(item, "lotId"); v != "" {

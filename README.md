@@ -7,7 +7,7 @@ Host: `https://kwara-viewer.apps.gestaobem.com` (noindex). Public GitHub: [`pupp
 ## Stack
 
 - Go + [Amarra](https://github.com/puppe1990/amarra-cais) + SQLite
-- Compact lot shape matches `ferramentas/kwara-mcp` (`id`, `kwaraId`, bid in cents, `pickupState`, `endsAt`)
+- Compact lot shape matches `ferramentas/kwara-mcp` (`id`, `kwaraId`, bid in cents, `pickupState`, `pickupCity`, `pickupAddress`, `endsAt`). City comes from `listing.location`; venue from `pickUpAddress` on the lot ficha.
 - Tests use `pkg/cais/fakedata`; live Kwara HTTP is injected
 
 ## Commands

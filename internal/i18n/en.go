@@ -33,7 +33,7 @@ var enMessages = map[string]string{
 
 	"home.title":         "Lots",
 	"home.hero_heading":  "Kwara clipboard",
-	"home.tagline":       "Open lots stored in SQLite. Filter, bid and pickup in BRT.",
+	"home.tagline":       "Open lots stored in SQLite. City, pickup venue, bid and deadline in BRT.",
 	"home.cta_open":      "Open the dashboard",
 	"home.stack":         "Go · Amarra · SQLite",
 	"home.next_steps":    "Next steps",
@@ -41,7 +41,7 @@ var enMessages = map[string]string{
 	"home.step_dev":      "Start the dev server",
 	"home.step_docs":     "Explore the framework",
 	"home.powered_by":    "Powered by Cais — lightweight apps on Lightsail",
-	"home.filter_q":      "Title, K-code or number",
+	"home.filter_q":      "Title, K-code, number or city",
 	"home.filter_pickup": "State",
 	"home.filter_open":   "Open only",
 	"home.filter_submit": "Filter",

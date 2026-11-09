@@ -20,6 +20,8 @@ type Lot struct {
 	BidsCount        int
 	EndsAt           string
 	PickupState      string
+	PickupCity       string
+	PickupAddress    string
 	Ended            bool
 	URL              string
 	SyncedAt         time.Time
@@ -45,8 +47,8 @@ func (s *SQLiteStore) UpsertLot(lot Lot) error {
 		INSERT INTO lots (
 			id, number, title, slug, listing_id, listing_title, kwara_id,
 			current_bid_cents, starting_bid_cents, bids_count, ends_at,
-			pickup_state, ended, url, synced_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+			pickup_state, pickup_city, pickup_address, ended, url, synced_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
 		ON CONFLICT(id) DO UPDATE SET
 			number = excluded.number,
 			title = excluded.title,
@@ -59,13 +61,15 @@ func (s *SQLiteStore) UpsertLot(lot Lot) error {
 			bids_count = excluded.bids_count,
 			ends_at = excluded.ends_at,
 			pickup_state = excluded.pickup_state,
+			pickup_city = excluded.pickup_city,
+			pickup_address = excluded.pickup_address,
 			ended = excluded.ended,
 			url = excluded.url,
 			synced_at = datetime('now'),
 			updated_at = datetime('now')
 	`, lot.ID, lot.Number, lot.Title, lot.Slug, lot.ListingID, lot.ListingTitle, lot.KwaraID,
 		lot.CurrentBidCents, lot.StartingBidCents, lot.BidsCount, lot.EndsAt,
-		lot.PickupState, ended, lot.URL)
+		lot.PickupState, lot.PickupCity, lot.PickupAddress, ended, lot.URL)
 	if err != nil {
 		return fmt.Errorf("upsert lot %s: %w", lot.ID, err)
 	}
@@ -81,7 +85,7 @@ func (s *SQLiteStore) ListLots(filter LotFilter) ([]Lot, error) {
 	query := `
 		SELECT id, number, title, slug, listing_id, listing_title, kwara_id,
 			current_bid_cents, starting_bid_cents, bids_count, ends_at,
-			pickup_state, ended, url, synced_at
+			pickup_state, pickup_city, pickup_address, ended, url, synced_at
 		FROM lots
 		WHERE ` + where + `
 		ORDER BY
@@ -112,14 +116,33 @@ func (s *SQLiteStore) CountLots(filter LotFilter) (int, error) {
 	return n, nil
 }
 
+func (s *SQLiteStore) PatchPickup(id, city, address, state string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("patch pickup: empty id")
+	}
+	_, err := s.db.Exec(`
+		UPDATE lots SET
+			pickup_city = CASE WHEN pickup_city = '' THEN ? ELSE pickup_city END,
+			pickup_address = CASE WHEN pickup_address = '' THEN ? ELSE pickup_address END,
+			pickup_state = CASE WHEN pickup_state = '' THEN ? ELSE pickup_state END,
+			updated_at = datetime('now')
+		WHERE id = ?
+	`, city, address, state, id)
+	if err != nil {
+		return fmt.Errorf("patch pickup %s: %w", id, err)
+	}
+	return nil
+}
+
 func lotWhere(filter LotFilter, now time.Time) (string, []any) {
 	clauses := []string{"1=1"}
 	var args []any
 	q := strings.TrimSpace(filter.Query)
 	if q != "" {
 		like := "%" + q + "%"
-		clauses = append(clauses, "(title LIKE ? OR kwara_id LIKE ? OR number LIKE ? OR listing_title LIKE ?)")
-		args = append(args, like, like, like, like)
+		clauses = append(clauses, "(title LIKE ? OR kwara_id LIKE ? OR number LIKE ? OR listing_title LIKE ? OR pickup_city LIKE ? OR pickup_address LIKE ?)")
+		args = append(args, like, like, like, like, like, like)
 	}
 	if state := strings.TrimSpace(filter.PickupState); state != "" {
 		clauses = append(clauses, "pickup_state = ?")
@@ -141,7 +164,7 @@ func scanLots(rows *sql.Rows) ([]Lot, error) {
 		if err := rows.Scan(
 			&lot.ID, &lot.Number, &lot.Title, &lot.Slug, &lot.ListingID, &lot.ListingTitle, &lot.KwaraID,
 			&lot.CurrentBidCents, &lot.StartingBidCents, &lot.BidsCount, &lot.EndsAt,
-			&lot.PickupState, &ended, &lot.URL, &synced,
+			&lot.PickupState, &lot.PickupCity, &lot.PickupAddress, &ended, &lot.URL, &synced,
 		); err != nil {
 			return nil, fmt.Errorf("scan lot: %w", err)
 		}
