@@ -33,6 +33,10 @@
           <option value="0"{{ if not .OpenOnly }} selected{{ end }}>Todos</option>
         </select>
       </label>
+      {{ if .Sort }}
+      <input type="hidden" name="sort" value="{{ .Sort }}" />
+      <input type="hidden" name="dir" value="{{ if .Desc }}desc{{ else }}asc{{ end }}" />
+      {{ end }}
       <div class="sm:col-span-4">
         <button type="submit" class="amarra-btn amarra-btn-secondary">{{ t "home.filter_submit" }}</button>
       </div>
@@ -56,11 +60,11 @@
     <table class="w-full min-w-[52rem] border-collapse text-left">
       <thead>
         <tr class="border-b border-foam/20 font-mono text-[11px] uppercase tracking-[0.18em] text-foam/45">
-          <th class="py-2 pr-4 font-medium">Lote</th>
-          <th class="py-2 pr-4 font-medium">Título</th>
-          <th class="py-2 pr-4 font-medium">{{ t "home.pickup" }}</th>
-          <th class="py-2 pr-4 font-medium">{{ t "home.bid" }}</th>
-          <th class="py-2 pr-4 font-medium">{{ t "home.ends" }}</th>
+          {{ range .Headers }}
+          <th class="py-2 pr-4 font-medium" aria-sort="{{ .Aria }}">
+            <a href="{{ .Href }}" class="inline-flex items-center gap-1 hover:text-copper{{ if .Active }} text-copper{{ end }}">{{ .Label }}{{ if .Active }}<span aria-hidden="true">{{ if eq .Aria "descending" }}↓{{ else }}↑{{ end }}</span>{{ end }}</a>
+          </th>
+          {{ end }}
           <th class="py-2 font-medium"></th>
         </tr>
       </thead>
@@ -94,6 +98,23 @@
       </tbody>
     </table>
   </div>
+  {{ if gt .Pager.Pages 1 }}
+  <nav class="mt-6 flex flex-wrap items-center gap-2 font-mono text-xs" aria-label="{{ t "home.page" .Pager.Page .Pager.Pages }}">
+    {{ if .Pager.HasPrev }}
+    <a href="{{ .Pager.Prev }}" class="border border-foam/20 px-3 py-1.5 text-foam/80 hover:border-copper hover:text-copper">{{ t "home.prev" }}</a>
+    {{ end }}
+    {{ range .Pager.Links }}
+      {{ if .Current }}
+      <span class="border border-copper px-3 py-1.5 text-copper" aria-current="page">{{ .N }}</span>
+      {{ else }}
+      <a href="{{ .Href }}" class="border border-foam/20 px-3 py-1.5 text-foam/80 hover:border-copper hover:text-copper">{{ .N }}</a>
+      {{ end }}
+    {{ end }}
+    {{ if .Pager.HasNext }}
+    <a href="{{ .Pager.Next }}" class="border border-foam/20 px-3 py-1.5 text-foam/80 hover:border-copper hover:text-copper">{{ t "home.next" }}</a>
+    {{ end }}
+  </nav>
+  {{ end }}
   {{ end }}
 </section>
 {{ end }}

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -258,6 +259,93 @@ func TestSQLiteStore_ListLotsOpenFirstThenEndsAt(t *testing.T) {
 	want := []string{"sooner", "later", "closed"}
 	if ids := idsOf(got); len(ids) != 3 || ids[0] != want[0] || ids[1] != want[1] || ids[2] != want[2] {
 		t.Fatalf("order = %v, want %v", ids, want)
+	}
+}
+
+func TestSQLiteStore_ListLotsPaginates(t *testing.T) {
+	s := newTestStore(t)
+	seedNumberedLots(t, s, 11)
+
+	page1, err := s.ListLots(LotFilter{Limit: 10, Offset: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page1) != 10 {
+		t.Fatalf("page1 len = %d, want 10", len(page1))
+	}
+	page2, err := s.ListLots(LotFilter{Limit: 10, Offset: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page2) != 1 {
+		t.Fatalf("page2 len = %d, want 1", len(page2))
+	}
+	if page2[0].ID != "11" {
+		t.Errorf("page2 id = %q, want 11", page2[0].ID)
+	}
+	if idsOf(page1)[0] != "01" {
+		t.Errorf("page1 first = %v", idsOf(page1))
+	}
+}
+
+func TestSQLiteStore_ListLotsSortsByBidDesc(t *testing.T) {
+	s := newTestStore(t)
+	seedNumberedLots(t, s, 11)
+
+	got, err := s.ListLots(LotFilter{Sort: "bid", Desc: true, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 10 {
+		t.Fatalf("len = %d", len(got))
+	}
+	if got[0].ID != "11" || got[0].CurrentBidCents != 11000 {
+		t.Fatalf("first = id %s bid %d, want 11 / 11000", got[0].ID, got[0].CurrentBidCents)
+	}
+	if got[1].ID != "10" {
+		t.Errorf("second = %s", got[1].ID)
+	}
+}
+
+func TestSQLiteStore_ListLotsSortsByCity(t *testing.T) {
+	s := newTestStore(t)
+	rows := []Lot{fakeLot("a"), fakeLot("b"), fakeLot("c")}
+	rows[0].PickupCity = "Taboão da Serra"
+	rows[1].PickupCity = "São Paulo"
+	rows[2].PickupCity = "Embu das Artes"
+	for i := range rows {
+		rows[i].Title = "Monitor " + rows[i].PickupCity
+		rows[i].EndsAt = "2026-12-01T15:00:00Z"
+		if err := s.UpsertLot(rows[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := s.ListLots(LotFilter{Sort: "city"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"c", "b", "a"}
+	if ids := idsOf(got); len(ids) != 3 || ids[0] != want[0] || ids[1] != want[1] || ids[2] != want[2] {
+		t.Fatalf("city order = %v, want %v", ids, want)
+	}
+}
+
+func seedNumberedLots(t *testing.T, s *SQLiteStore, n int) {
+	t.Helper()
+	cities := []string{"Embu das Artes", "São Paulo", "Taboão da Serra"}
+	for i := 1; i <= n; i++ {
+		lot := fakeLot(fmt.Sprintf("%02d", i))
+		lot.Number = fmt.Sprintf("%03d", i)
+		lot.Title = fmt.Sprintf("Monitor lote %02d", i)
+		lot.KwaraID = fmt.Sprintf("K-%d", 3000+i)
+		lot.CurrentBidCents = int64(i * 1000)
+		lot.PickupCity = cities[(i-1)%len(cities)]
+		lot.EndsAt = "2026-12-01T15:00:00Z"
+		lot.Ended = false
+		if err := s.UpsertLot(lot); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

@@ -43,10 +43,16 @@ func (h *CatalogHandler) t(r *http.Request, key string, args ...any) string {
 }
 
 func (h *CatalogHandler) Home(w http.ResponseWriter, r *http.Request) {
-	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	pickup := strings.TrimSpace(r.URL.Query().Get("pickup"))
-	openOnly := r.URL.Query().Get("open") != "0"
-	filter := store.LotFilter{Query: q, PickupState: pickup, OpenOnly: openOnly}
+	q := parseCatalogQuery(r)
+	filter := q.filter()
+	matched, err := h.store.CountLots(filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	pager := q.pager(matched)
+	filter.Limit = catalogPageSize
+	filter.Offset = (pager.Page - 1) * catalogPageSize
 	lots, err := h.store.ListLots(filter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -58,13 +64,28 @@ func (h *CatalogHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.write(w, r, "home", h.t(r, "home.title"), map[string]any{
-		"Query":    q,
-		"Pickup":   pickup,
-		"OpenOnly": openOnly,
+		"Query":    q.Query,
+		"Pickup":   q.Pickup,
+		"OpenOnly": q.OpenOnly,
+		"Sort":     q.Sort,
+		"Desc":     q.Desc,
 		"Lots":     newLotViews(lots),
 		"Shown":    len(lots),
+		"Matched":  matched,
 		"Stored":   total,
+		"Headers":  q.headers(h.sortLabels(r)),
+		"Pager":    pager,
 	})
+}
+
+func (h *CatalogHandler) sortLabels(r *http.Request) [][2]string {
+	return [][2]string{
+		{"kwara", h.t(r, "home.lot")},
+		{"title", h.t(r, "home.title_col")},
+		{"city", h.t(r, "home.pickup")},
+		{"bid", h.t(r, "home.bid")},
+		{"ends", h.t(r, "home.ends")},
+	}
 }
 
 func (h *CatalogHandler) Sync(w http.ResponseWriter, r *http.Request) {

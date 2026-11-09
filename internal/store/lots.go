@@ -32,6 +32,10 @@ type LotFilter struct {
 	PickupState string
 	OpenOnly    bool
 	Now         time.Time
+	Sort        string
+	Desc        bool
+	Limit       int
+	Offset      int
 }
 
 func (s *SQLiteStore) UpsertLot(lot Lot) error {
@@ -82,18 +86,23 @@ func (s *SQLiteStore) ListLots(filter LotFilter) ([]Lot, error) {
 		now = time.Now().UTC()
 	}
 	where, args := lotWhere(filter, now)
+	order, orderArgs := lotOrder(filter, now)
 	query := `
 		SELECT id, number, title, slug, listing_id, listing_title, kwara_id,
 			current_bid_cents, starting_bid_cents, bids_count, ends_at,
 			pickup_state, pickup_city, pickup_address, ended, url, synced_at
 		FROM lots
 		WHERE ` + where + `
-		ORDER BY
-			CASE WHEN ended = 0 AND (ends_at = '' OR datetime(ends_at) > datetime(?)) THEN 0 ELSE 1 END,
-			CASE WHEN ends_at = '' THEN 1 ELSE 0 END,
-			datetime(ends_at) ASC
-	`
-	args = append(args, now.UTC().Format(time.RFC3339))
+		` + order
+	args = append(args, orderArgs...)
+	if filter.Limit > 0 {
+		query += " LIMIT ? OFFSET ?"
+		offset := filter.Offset
+		if offset < 0 {
+			offset = 0
+		}
+		args = append(args, filter.Limit, offset)
+	}
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list lots: %w", err)
@@ -133,6 +142,31 @@ func (s *SQLiteStore) PatchPickup(id, city, address, state string) error {
 		return fmt.Errorf("patch pickup %s: %w", id, err)
 	}
 	return nil
+}
+
+func lotOrder(filter LotFilter, now time.Time) (string, []any) {
+	dir := "ASC"
+	if filter.Desc {
+		dir = "DESC"
+	}
+	switch strings.ToLower(strings.TrimSpace(filter.Sort)) {
+	case "kwara":
+		return "ORDER BY kwara_id COLLATE NOCASE " + dir + ", CAST(number AS INTEGER) " + dir + ", id " + dir, nil
+	case "title":
+		return "ORDER BY title COLLATE NOCASE " + dir + ", id " + dir, nil
+	case "city":
+		return "ORDER BY pickup_city COLLATE NOCASE " + dir + ", pickup_address COLLATE NOCASE " + dir + ", id " + dir, nil
+	case "bid":
+		return "ORDER BY current_bid_cents " + dir + ", id " + dir, nil
+	case "ends":
+		return "ORDER BY CASE WHEN ends_at = '' THEN 1 ELSE 0 END ASC, datetime(ends_at) " + dir + ", id " + dir, nil
+	default:
+		return `ORDER BY
+			CASE WHEN ended = 0 AND (ends_at = '' OR datetime(ends_at) > datetime(?)) THEN 0 ELSE 1 END,
+			CASE WHEN ends_at = '' THEN 1 ELSE 0 END,
+			datetime(ends_at) ASC,
+			id ASC`, []any{now.UTC().Format(time.RFC3339)}
+	}
 }
 
 func lotWhere(filter LotFilter, now time.Time) (string, []any) {

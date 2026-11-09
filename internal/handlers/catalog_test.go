@@ -306,6 +306,99 @@ func TestEnrichStoredPickup_PatchesMissingCity(t *testing.T) {
 	}
 }
 
+func TestCatalogHome_PaginatesTen(t *testing.T) {
+	h, s := newCatalog(t, &stubSearcher{})
+	seedNumberedCatalog(t, s, 11)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	h.Home(rr, req)
+	body := rr.Body.String()
+	if !strings.Contains(body, "Monitor lote 01") {
+		t.Fatal("page 1 missing first lot")
+	}
+	if !strings.Contains(body, "Monitor lote 10") {
+		t.Fatal("page 1 missing tenth lot")
+	}
+	if strings.Contains(body, "Monitor lote 11") {
+		t.Fatal("page 1 should not include eleventh lot")
+	}
+	if !strings.Contains(body, "page=2") {
+		t.Fatal("missing page 2 link")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/?page=2", nil)
+	rr = httptest.NewRecorder()
+	h.Home(rr, req)
+	body = rr.Body.String()
+	if !strings.Contains(body, "Monitor lote 11") {
+		t.Fatal("page 2 missing eleventh lot")
+	}
+	if strings.Contains(body, "Monitor lote 01") {
+		t.Fatal("page 2 should not include first lot")
+	}
+}
+
+func TestCatalogHome_SortsByBidDesc(t *testing.T) {
+	h, s := newCatalog(t, &stubSearcher{})
+	seedNumberedCatalog(t, s, 11)
+
+	req := httptest.NewRequest(http.MethodGet, "/?sort=bid&dir=desc", nil)
+	rr := httptest.NewRecorder()
+	h.Home(rr, req)
+	body := rr.Body.String()
+	first := strings.Index(body, "Monitor lote 11")
+	second := strings.Index(body, "Monitor lote 10")
+	if first < 0 || second < 0 || first > second {
+		t.Fatalf("bid desc order: lote11@%d lote10@%d", first, second)
+	}
+	if strings.Contains(body, "Monitor lote 01") {
+		t.Fatal("highest-bid page should not include lote 01")
+	}
+	if !strings.Contains(body, `sort=bid`) {
+		t.Fatal("missing sort=bid header link")
+	}
+	if !strings.Contains(body, `aria-sort="descending"`) {
+		t.Fatal("missing aria-sort on active column")
+	}
+}
+
+func TestCatalogHome_ClampsPagePastEnd(t *testing.T) {
+	h, s := newCatalog(t, &stubSearcher{})
+	seedNumberedCatalog(t, s, 11)
+
+	req := httptest.NewRequest(http.MethodGet, "/?page=99", nil)
+	rr := httptest.NewRecorder()
+	h.Home(rr, req)
+	body := rr.Body.String()
+	if !strings.Contains(body, "Monitor lote 11") {
+		t.Fatal("clamped last page missing lote 11")
+	}
+	if strings.Contains(body, "Monitor lote 01") {
+		t.Fatal("clamped last page still showing page 1")
+	}
+}
+
+func seedNumberedCatalog(t *testing.T, s store.Store, n int) {
+	t.Helper()
+	cities := []string{"Embu das Artes", "São Paulo", "Taboão da Serra"}
+	for i := 1; i <= n; i++ {
+		lot := store.Lot{
+			ID:              fmt.Sprintf("%02d", i),
+			Number:          fmt.Sprintf("%03d", i),
+			Title:           fmt.Sprintf("Monitor lote %02d", i),
+			KwaraID:         fmt.Sprintf("K-%d", 3000+i),
+			CurrentBidCents: int64(i * 1000),
+			PickupState:     "SP",
+			PickupCity:      cities[(i-1)%len(cities)],
+			EndsAt:          "2026-12-01T15:00:00Z",
+		}
+		if err := s.UpsertLot(lot); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCatalogRobots_DisallowAll(t *testing.T) {
 	h, _ := newCatalog(t, &stubSearcher{})
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
